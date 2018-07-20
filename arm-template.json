@@ -7,10 +7,10 @@
         }
     },
     "variables": {
-        "apiFunctionAppName": "[parameters('appBaseName')]",
-        "apiFunctionAppServicePlanName": "[concat(parameters('appBaseName'), '-sp')]",
+        "apiFunctionAppName": "[concat(parameters('appBaseName'), '-api')]",
+        "apiFunctionAppServicePlanName": "[concat(variables('apiFunctionAppName'), '-sp')]",
         "storageAccountName": "[toLower(replace(parameters('appBaseName'),'-',''))]",
-        "appInsightsName": "[parameters('appBaseName')]"
+        "apiFunctionAppInsightsName": "[variables('apiFunctionAppName')]"
     },
     "resources": [{
             "type": "Microsoft.Storage/storageAccounts",
@@ -39,7 +39,7 @@
             }
         },
         {
-            "name": "[variables('appInsightsName')]",
+            "name": "[variables('apiFunctionAppInsightsName')]",
             "type": "Microsoft.Insights/components",
             "apiVersion": "2015-05-01",
             "location": "West US 2",
@@ -52,19 +52,28 @@
             "name": "[variables('apiFunctionAppName')]",
             "type": "Microsoft.Web/sites",
             "apiVersion": "2015-08-01",
+            "location": "[resourceGroup().location]",
+            "kind": "functionapp",
             "dependsOn": [
                 "[resourceId('Microsoft.Web/serverfarms', variables('apiFunctionAppServicePlanName'))]",
-                "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+                "[resourceId('Microsoft.Insights/components', variables('apiFunctionAppInsightsName'))]",
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
             ],
             "tags": {
                 "displayName": "Azure Functions"
+            },
+            "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('apiFunctionAppServicePlanName'))]",
+                "name": "[variables('apiFunctionAppName')]"
             },
             "resources": [{
                 "apiVersion": "2015-08-01",
                 "type": "config",
                 "name": "appsettings",
                 "location": "[resourceGroup().location]",
+                "dependsOn": [
+                    "[concat('Microsoft.Web/sites/', variables('apiFunctionAppName'))]"
+                ],
                 "tags": {
                     "displayName": "Web App Settings"
                 },
@@ -74,7 +83,7 @@
                     "AzureWebJobsDashboard": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(resourceId(resourceGroup().name, 'Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2016-01-01').keys[0].value)]",
                     "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(resourceId(resourceGroup().name, 'Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2016-01-01').keys[0].value)]",
                     "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(resourceId(resourceGroup().name, 'Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2016-01-01').keys[0].value)]",
-                    "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2014-04-01').InstrumentationKey]"
+                    "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.Insights/components', variables('apiFunctionAppInsightsName')), '2014-04-01').InstrumentationKey]"
                 }
             }]
         }
